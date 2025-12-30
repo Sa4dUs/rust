@@ -13,6 +13,7 @@ use rustc_codegen_ssa::back::write::{
     TargetMachineFactoryConfig, TargetMachineFactoryFn,
 };
 use rustc_codegen_ssa::base::wants_wasm_eh;
+use rustc_codegen_ssa::common::TypeKind;
 use rustc_codegen_ssa::traits::*;
 use rustc_codegen_ssa::{CompiledModule, ModuleCodegen, ModuleKind};
 use rustc_data_structures::profiling::SelfProfilerRef;
@@ -669,7 +670,29 @@ pub(crate) unsafe fn llvm_optimize(
         // Create the new parameter list, with ptr as the first argument
         let mut new_param_types = Vec::with_capacity(old_param_count as usize + 1);
         new_param_types.push(cx.type_ptr());
-        new_param_types.extend(old_param_types);
+
+        // OpenMP passes all scalar kernel arguments as i64, regardless of their original type.
+        // The original types are explicitly reconstructed in the device prologue.
+        //
+        // Given a kernel with the following signature:
+        //      void kernel(ptr array, float x)
+        //
+        // The offloaded device signature becomes:
+        //      void kernel(ptr dyn_ptr, ptr array, i64 x)
+        //
+        // The original value and type are then reconstructed as:
+        //      %x_trunc = trunc i64 %x to i32
+        //      %x_cast  = bitcast i32 %x_trunc to float
+        // TODO(Sa4dUs): trunc and cast args to match their original types
+
+        for old_ty in old_param_types {
+            let new_ty = match cx.type_kind(old_ty) {
+                TypeKind::Half | TypeKind::Float | TypeKind::Double => cx.type_i64(),
+                _ => old_ty,
+            };
+
+            new_param_types.push(new_ty)
+        }
 
         // Create the new function type
         let ret_ty = unsafe { llvm::LLVMGetReturnType(old_fn_ty) };
