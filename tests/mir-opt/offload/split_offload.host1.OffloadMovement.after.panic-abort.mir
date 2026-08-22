@@ -1,0 +1,32 @@
+// MIR for `host1` after OffloadMovement
+
+fn host1(_1: *mut [f64; 4]) -> () {
+    debug a => _1;
+    let mut _0: ();
+    let mut _2: [u32; 3];
+    let mut _3: (*mut [f64; 4],);
+    let mut _4: ();
+    let mut _5: ();
+
+    bb0: {
+        StorageLive(_2);
+        _2 = [const 1_u32, const 1_u32, const 1_u32];
+        StorageLive(_3);
+        _3 = (copy _1,);
+        _4 = offload_begin::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _2, copy _2, const 0_u32, const -1_i32, copy _3) -> [return: bb3, unwind unreachable];
+    }
+
+    bb1: {
+        StorageDead(_3);
+        StorageDead(_2);
+        return;
+    }
+
+    bb2: {
+        _0 = offload_end::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _2, copy _2, const 0_u32, const -1_i32, copy _3) -> [return: bb1, unwind unreachable];
+    }
+
+    bb3: {
+        _5 = offload_launch::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _2, copy _2, const 0_u32, const -1_i32, copy _3) -> [return: bb2, unwind unreachable];
+    }
+}

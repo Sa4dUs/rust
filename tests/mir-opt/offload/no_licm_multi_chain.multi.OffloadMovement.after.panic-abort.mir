@@ -1,0 +1,82 @@
+// MIR for `multi` after OffloadMovement
+
+fn multi(_1: *mut [f64; 4], _2: *mut [f64; 4], _3: u32) -> () {
+    debug a => _1;
+    debug b => _2;
+    debug n => _3;
+    let mut _0: ();
+    let mut _4: u32;
+    let mut _5: bool;
+    let mut _6: u32;
+    let _7: ();
+    let mut _8: [u32; 3];
+    let mut _9: (*mut [f64; 4],);
+    let _10: ();
+    let mut _11: (*mut [f64; 4],);
+    let mut _12: ();
+    let mut _13: ();
+    let mut _14: ();
+    let mut _15: ();
+    scope 1 {
+        debug i => _4;
+    }
+
+    bb0: {
+        StorageLive(_4);
+        _4 = const 0_u32;
+        goto -> bb1;
+    }
+
+    bb1: {
+        StorageLive(_5);
+        StorageLive(_6);
+        _6 = copy _4;
+        _5 = Lt(move _6, copy _3);
+        switchInt(move _5) -> [0: bb5, otherwise: bb2];
+    }
+
+    bb2: {
+        StorageDead(_6);
+        _8 = [const 1_u32, const 1_u32, const 1_u32];
+        StorageLive(_9);
+        _9 = (copy _1,);
+        _12 = offload_begin::<fn(*mut [f64; 4]) {k1}, (*mut [f64; 4],), ()>(k1, copy _8, copy _8, const 0_u32, const -1_i32, copy _9) -> [return: bb7, unwind unreachable];
+    }
+
+    bb3: {
+        StorageDead(_9);
+        StorageLive(_11);
+        _11 = (copy _2,);
+        _14 = offload_begin::<fn(*mut [f64; 4]) {k2}, (*mut [f64; 4],), ()>(k2, copy _8, copy _8, const 0_u32, const -1_i32, copy _11) -> [return: bb9, unwind unreachable];
+    }
+
+    bb4: {
+        StorageDead(_11);
+        _4 = Add(copy _4, const 1_u32);
+        StorageDead(_5);
+        goto -> bb1;
+    }
+
+    bb5: {
+        StorageDead(_6);
+        StorageDead(_5);
+        StorageDead(_4);
+        return;
+    }
+
+    bb6: {
+        _7 = offload_end::<fn(*mut [f64; 4]) {k1}, (*mut [f64; 4],), ()>(k1, copy _8, copy _8, const 0_u32, const -1_i32, copy _9) -> [return: bb3, unwind unreachable];
+    }
+
+    bb7: {
+        _13 = offload_launch::<fn(*mut [f64; 4]) {k1}, (*mut [f64; 4],), ()>(k1, copy _8, copy _8, const 0_u32, const -1_i32, copy _9) -> [return: bb6, unwind unreachable];
+    }
+
+    bb8: {
+        _10 = offload_end::<fn(*mut [f64; 4]) {k2}, (*mut [f64; 4],), ()>(k2, copy _8, copy _8, const 0_u32, const -1_i32, copy _11) -> [return: bb4, unwind unreachable];
+    }
+
+    bb9: {
+        _15 = offload_launch::<fn(*mut [f64; 4]) {k2}, (*mut [f64; 4],), ()>(k2, copy _8, copy _8, const 0_u32, const -1_i32, copy _11) -> [return: bb8, unwind unreachable];
+    }
+}

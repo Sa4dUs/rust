@@ -1,0 +1,57 @@
+// MIR for `looped` after OffloadMovement
+
+fn looped(_1: *mut [f64; 4], _2: u32) -> () {
+    debug a => _1;
+    debug n => _2;
+    let mut _0: ();
+    let mut _3: u32;
+    let mut _4: bool;
+    let mut _5: u32;
+    let _6: ();
+    let mut _7: [u32; 3];
+    let mut _8: (*mut [f64; 4],);
+    let mut _9: ();
+    let mut _10: ();
+    scope 1 {
+        debug i => _3;
+    }
+
+    bb0: {
+        StorageLive(_3);
+        _3 = const 0_u32;
+        goto -> bb5;
+    }
+
+    bb1: {
+        StorageLive(_4);
+        _5 = copy _3;
+        _4 = Lt(move _5, copy _2);
+        switchInt(move _4) -> [0: bb6, otherwise: bb4];
+    }
+
+    bb2: {
+        _3 = Add(copy _3, const 1_u32);
+        StorageDead(_4);
+        goto -> bb1;
+    }
+
+    bb3: {
+        StorageDead(_4);
+        StorageDead(_3);
+        return;
+    }
+
+    bb4: {
+        _10 = offload_launch::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _7, copy _7, const 0_u32, const -1_i32, copy _8) -> [return: bb2, unwind unreachable];
+    }
+
+    bb5: {
+        _7 = [const 1_u32, const 1_u32, const 1_u32];
+        _8 = (copy _1,);
+        _9 = offload_begin::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _7, copy _7, const 0_u32, const -1_i32, copy _8) -> [return: bb1, unwind unreachable];
+    }
+
+    bb6: {
+        _6 = offload_end::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _7, copy _7, const 0_u32, const -1_i32, copy _8) -> [return: bb3, unwind unreachable];
+    }
+}

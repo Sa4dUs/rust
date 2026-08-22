@@ -1,0 +1,58 @@
+// MIR for `looped` after OffloadMovement
+
+fn looped(_1: *mut [f64; 4], _2: u32) -> () {
+    debug a => _1;
+    debug n => _2;
+    let mut _0: ();
+    let mut _3: u32;
+    let mut _4: bool;
+    let mut _5: u32;
+    let _6: ();
+    let mut _7: [u32; 3];
+    let mut _8: (*mut [f64; 4],);
+    let mut _9: (u32, bool);
+    let mut _10: ();
+    let mut _11: ();
+    scope 1 {
+        debug i => _3;
+    }
+
+    bb0: {
+        _3 = const 0_u32;
+        goto -> bb6;
+    }
+
+    bb1: {
+        _5 = copy _3;
+        _4 = Lt(move _5, copy _2);
+        switchInt(move _4) -> [0: bb7, otherwise: bb5];
+    }
+
+    bb2: {
+        _9 = AddWithOverflow(copy _3, const 1_u32);
+        assert(!move (_9.1: bool), "attempt to compute `{} + {}`, which would overflow", copy _3, const 1_u32) -> [success: bb3, unwind unreachable];
+    }
+
+    bb3: {
+        _3 = move (_9.0: u32);
+        goto -> bb1;
+    }
+
+    bb4: {
+        return;
+    }
+
+    bb5: {
+        _11 = offload_launch::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _7, copy _7, const 0_u32, const -1_i32, copy _8) -> [return: bb2, unwind unreachable];
+    }
+
+    bb6: {
+        _7 = [const 1_u32, const 1_u32, const 1_u32];
+        _8 = (copy _1,);
+        _10 = offload_begin::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _7, copy _7, const 0_u32, const -1_i32, copy _8) -> [return: bb1, unwind unreachable];
+    }
+
+    bb7: {
+        _6 = offload_end::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _7, copy _7, const 0_u32, const -1_i32, copy _8) -> [return: bb4, unwind unreachable];
+    }
+}

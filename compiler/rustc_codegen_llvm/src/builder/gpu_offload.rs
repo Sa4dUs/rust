@@ -16,6 +16,19 @@ use crate::llvm::AttributePlace::Function;
 use crate::llvm::{self, Linkage, Type, Value};
 use crate::{SimpleCx, attributes};
 
+/// Which part of an offload region an intrinsic call emits. The `OffloadMovement` MIR
+/// pass splits a single `offload` call into `offload_begin` + `offload_launch` +
+/// `offload_end`. Codegen for the three calls in order must be equivalent to the
+/// single-call `OffloadPhase::All` path (which remains for un-split calls).
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum OffloadPhase {
+    /// Emit the whole begin + launch + end sequence (legacy `offload` intrinsic).
+    All,
+    Begin,
+    Launch,
+    End,
+}
+
 // LLVM kernel-independent globals required for offloading
 pub(crate) struct OffloadGlobals<'ll> {
     pub launcher_fn: &'ll llvm::Value,
@@ -606,6 +619,7 @@ pub(crate) fn gen_call_handling<'ll, 'tcx>(
     offload_dims: &OffloadKernelDims<'ll>,
     dyn_cache: &'ll Value,
     device_id: &'ll Value,
+    phase: OffloadPhase,
 ) {
     let cx = builder.cx;
     let OffloadKernelGlobals {
@@ -761,49 +775,58 @@ pub(crate) fn gen_call_handling<'ll, 'tcx>(
     // Step 2)
     let s_ident_t = offload_globals.ident_t_global;
     let geps = get_geps(builder, ty, ty2, a1, a2, a4, has_dynamic);
-    generate_mapper_call(
-        builder,
-        geps,
-        memtransfer_begin,
-        begin_mapper_decl,
-        fn_ty,
-        num_args,
-        s_ident_t,
-    );
-    let values = KernelArgsTy::new(
-        &cx,
-        num_args,
-        memtransfer_kernel,
-        geps,
-        workgroup_dims,
-        thread_dims,
-        dyn_cache,
-    );
 
-    // Step 3)
-    // Here we fill the KernelArgsTy, see the documentation above
-    for (i, value) in values.iter().enumerate() {
-        let ptr = builder.inbounds_gep(tgt_kernel_decl, a5, &[i32_0, cx.get_const_i32(i as u64)]);
-        let name = std::ffi::CString::new(value.1).unwrap();
-        llvm::set_value_name(ptr, &name.as_bytes());
-
-        builder.store(value.2, ptr, value.0);
+    if matches!(phase, OffloadPhase::Begin | OffloadPhase::All) {
+        generate_mapper_call(
+            builder,
+            geps,
+            memtransfer_begin,
+            begin_mapper_decl,
+            fn_ty,
+            num_args,
+            s_ident_t,
+        );
     }
 
-    let device_id = builder.sext(device_id, cx.type_i64());
-    let args = vec![s_ident_t, device_id, num_workgroups, threads_per_block, region_id, a5];
-    builder.call(tgt_target_kernel_ty, None, None, tgt_decl, &args, None, None);
-    // %41 = call i32 @__tgt_target_kernel(ptr @1, i64 -1, i32 2097152, i32 256, ptr @.kernel_1.region_id, ptr %kernel_args)
+    if matches!(phase, OffloadPhase::Launch | OffloadPhase::All) {
+        let values = KernelArgsTy::new(
+            &cx,
+            num_args,
+            memtransfer_kernel,
+            geps,
+            workgroup_dims,
+            thread_dims,
+            dyn_cache,
+        );
 
-    // Step 4)
-    let geps = get_geps(builder, ty, ty2, a1, a2, a4, has_dynamic);
-    generate_mapper_call(
-        builder,
-        geps,
-        memtransfer_end,
-        end_mapper_decl,
-        fn_ty,
-        num_args,
-        s_ident_t,
-    );
+        // Step 3)
+        // Here we fill the KernelArgsTy, see the documentation above
+        for (i, value) in values.iter().enumerate() {
+            let ptr =
+                builder.inbounds_gep(tgt_kernel_decl, a5, &[i32_0, cx.get_const_i32(i as u64)]);
+            let name = std::ffi::CString::new(value.1).unwrap();
+            llvm::set_value_name(ptr, &name.as_bytes());
+
+            builder.store(value.2, ptr, value.0);
+        }
+
+        let device_id = builder.sext(device_id, cx.type_i64());
+        let args = vec![s_ident_t, device_id, num_workgroups, threads_per_block, region_id, a5];
+        builder.call(tgt_target_kernel_ty, None, None, tgt_decl, &args, None, None);
+        // %41 = call i32 @__tgt_target_kernel(ptr @1, i64 -1, i32 2097152, i32 256, ptr @.kernel_1.region_id, ptr %kernel_args)
+    }
+
+    if matches!(phase, OffloadPhase::End | OffloadPhase::All) {
+        // Step 4)
+        let geps = get_geps(builder, ty, ty2, a1, a2, a4, has_dynamic);
+        generate_mapper_call(
+            builder,
+            geps,
+            memtransfer_end,
+            end_mapper_decl,
+            fn_ty,
+            num_args,
+            s_ident_t,
+        );
+    }
 }

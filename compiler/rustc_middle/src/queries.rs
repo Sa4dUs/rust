@@ -714,6 +714,18 @@ rustc_queries! {
         separate_provide_extern
     }
 
+    /// Computes, per kernel argument, whether the kernel body reads from and/or writes to
+    /// the argument's mapped payload. This is a MIR analysis over the kernel's optimized
+    /// body (see `rustc_mir_transform::offload`) and is used by codegen to emit only the
+    /// data transfers a kernel actually needs (`MappingFlags::TO`/`FROM`).
+    ///
+    /// Returns `None` for functions that are not offload kernels or whose body is
+    /// unavailable (e.g. foreign kernels); callers then fall back to the conservative
+    /// type-based mapping.
+    query offload_kernel_arg_access(key: ty::Instance<'tcx>) -> Option<&'tcx Vec<ty::offload_meta::ArgAccess>> {
+        desc { "computing offload data movement for `{}`", tcx.def_path_str(key.def_id()) }
+    }
+
     /// Checks for the nearest `#[coverage(off)]` or `#[coverage(on)]` on
     /// this def and any enclosing defs, up to the crate root.
     ///

@@ -1,0 +1,85 @@
+// MIR for `cond` after OffloadMovement
+
+fn cond(_1: *mut [f64; 4], _2: u32) -> () {
+    debug a => _1;
+    debug n => _2;
+    let mut _0: ();
+    let mut _3: u32;
+    let mut _4: bool;
+    let mut _5: u32;
+    let _6: ();
+    let mut _7: u32;
+    let mut _8: u32;
+    let mut _9: [u32; 3];
+    let mut _10: (*mut [f64; 4],);
+    let mut _11: ();
+    let mut _12: ();
+    scope 1 {
+        debug i => _3;
+    }
+
+    bb0: {
+        StorageLive(_3);
+        _3 = const 0_u32;
+        goto -> bb1;
+    }
+
+    bb1: {
+        StorageLive(_4);
+        StorageLive(_5);
+        _5 = copy _3;
+        _4 = Lt(move _5, copy _2);
+        switchInt(move _4) -> [0: bb7, otherwise: bb2];
+    }
+
+    bb2: {
+        StorageDead(_5);
+        StorageLive(_7);
+        StorageLive(_8);
+        _8 = copy _3;
+        _7 = Rem(move _8, const 2_u32);
+        StorageDead(_8);
+        switchInt(copy _7) -> [0: bb3, otherwise: bb5];
+    }
+
+    bb3: {
+        StorageDead(_7);
+        StorageLive(_9);
+        _9 = [const 1_u32, const 1_u32, const 1_u32];
+        StorageLive(_10);
+        _10 = (copy _1,);
+        _11 = offload_begin::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _9, copy _9, const 0_u32, const -1_i32, copy _10) -> [return: bb9, unwind unreachable];
+    }
+
+    bb4: {
+        StorageDead(_10);
+        StorageDead(_9);
+        goto -> bb6;
+    }
+
+    bb5: {
+        StorageDead(_7);
+        goto -> bb6;
+    }
+
+    bb6: {
+        _3 = Add(copy _3, const 1_u32);
+        StorageDead(_4);
+        goto -> bb1;
+    }
+
+    bb7: {
+        StorageDead(_5);
+        StorageDead(_4);
+        StorageDead(_3);
+        return;
+    }
+
+    bb8: {
+        _6 = offload_end::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _9, copy _9, const 0_u32, const -1_i32, copy _10) -> [return: bb4, unwind unreachable];
+    }
+
+    bb9: {
+        _12 = offload_launch::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _9, copy _9, const 0_u32, const -1_i32, copy _10) -> [return: bb8, unwind unreachable];
+    }
+}

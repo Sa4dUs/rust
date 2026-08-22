@@ -105,6 +105,7 @@ rustc_arena::declare_arena! {
     upvars_mentioned: rustc_data_structures::fx::FxIndexMap<rustc_hir::HirId, rustc_hir::Upvar>,
     dyn_compatibility_violations: rustc_middle::traits::DynCompatibilityViolation,
     codegen_unit: rustc_middle::mono::CodegenUnit<'tcx>,
+    offload_arg_access: Vec<rustc_middle::ty::offload_meta::ArgAccess>,
     attribute: rustc_hir::Attribute,
     name_set: rustc_data_structures::unord::UnordSet<rustc_span::Symbol>,
     autodiff_item: rustc_hir::attrs::AutoDiffItem,

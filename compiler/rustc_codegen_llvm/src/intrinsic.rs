@@ -37,7 +37,7 @@ use crate::abi::FnAbiLlvmExt;
 use crate::builder::Builder;
 use crate::builder::autodiff::{adjust_activity_to_abi, generate_enzyme_call};
 use crate::builder::gpu_offload::{
-    self, OffloadKernelDims, declare_omp_get_num_devices, register_offload,
+    self, OffloadKernelDims, OffloadPhase, declare_omp_get_num_devices, register_offload,
 };
 use crate::context::CodegenCx;
 use crate::declare::declare_raw_fn;
@@ -228,7 +228,12 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
             sym::autodiff => {
                 return codegen_autodiff(self, instance, args, result_layout, result_place);
             }
-            sym::offload => {
+            // The `OffloadMovement` MIR pass splits a single `offload` call into
+            // `offload_begin` + `offload_launch` + `offload_end` so the data transfers
+            // can be hoisted out of loops and merged across consecutive launches. Each
+            // intrinsic emits only its own part. An un-split `offload` call still
+            // emits the whole sequence.
+            sym::offload | sym::offload_begin | sym::offload_launch | sym::offload_end => {
                 if tcx.sess.opts.unstable_opts.offload.is_empty() {
                     let _ = tcx.dcx().emit_almost_fatal(OffloadWithoutEnable);
                 }
@@ -237,7 +242,14 @@ impl<'ll, 'tcx> IntrinsicCallBuilderMethods<'tcx> for Builder<'_, 'll, 'tcx> {
                     let _ = tcx.dcx().emit_almost_fatal(OffloadWithoutFatLTO);
                 }
 
-                codegen_offload(self, tcx, instance, args);
+                let phase = match name {
+                    sym::offload => OffloadPhase::All,
+                    sym::offload_begin => OffloadPhase::Begin,
+                    sym::offload_launch => OffloadPhase::Launch,
+                    sym::offload_end => OffloadPhase::End,
+                    _ => unreachable!(),
+                };
+                codegen_offload(self, tcx, instance, args, phase);
                 // offload *has* a return type, but somehow works without mentioning the place
                 return IntrinsicResult::WroteIntoPlace;
             }
@@ -1831,6 +1843,7 @@ fn codegen_offload<'ll, 'tcx>(
     tcx: TyCtxt<'tcx>,
     instance: ty::Instance<'tcx>,
     args: &[OperandRef<'tcx, &'ll Value>],
+    phase: OffloadPhase,
 ) {
     let cx = bx.cx;
     let fn_args = instance.args;
@@ -1871,12 +1884,27 @@ fn codegen_offload<'ll, 'tcx>(
 
     let fn_abi = cx.fn_abi_of_instance(fn_target, ty::List::empty());
 
+    // The offload MIR analysis (`offload_kernel_arg_access`) determines, for each kernel
+    // argument, whether the kernel body reads from and/or writes to the argument's mapped
+    // payload. Use it to drop data transfers the kernel does not need (e.g. the copy back
+    // for a `&mut` argument that is only ever read), and keep the conservative type-based
+    // mapping when the analysis is unavailable.
+    let arg_access = tcx.offload_kernel_arg_access(fn_target);
+
     let mut metadata = Vec::new();
     let mut types = Vec::new();
 
     for (i, arg_abi) in fn_abi.args.iter().enumerate() {
         let ty = inputs[i];
-        let decomposed = OffloadMetadata::handle_abi(cx, tcx, ty, arg_abi);
+        let mut decomposed = OffloadMetadata::handle_abi(cx, tcx, ty, arg_abi);
+
+        if let Some(accesses) = arg_access
+            && let Some(acc) = accesses.get(i)
+        {
+            for (meta, _) in decomposed.iter_mut() {
+                meta.mode = acc.refine(meta.mode, ty);
+            }
+        }
 
         for (meta, entry_ty) in decomposed {
             metadata.push(meta);
@@ -1905,6 +1933,7 @@ fn codegen_offload<'ll, 'tcx>(
         &offload_dims,
         &dyn_cache,
         &device_id,
+        phase,
     );
 }
 

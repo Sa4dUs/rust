@@ -3854,6 +3854,46 @@ pub const fn offload<F, T: crate::marker::Tuple, R>(
 #[rustc_intrinsic]
 pub const fn offload_get_num_devices() -> i32;
 
+/// The copy-in half of an `offload` region: registers the kernel's mapped arguments with the
+/// offload runtime. The `OffloadMovement` MIR pass splits a single `offload` call into
+/// `offload_begin` + `offload_launch` + `offload_end` so the data transfers can be hoisted
+/// out of loops and merged across consecutive kernel launches. Codegen for these three
+/// intrinsics must stay equivalent to a single `offload` call when executed in order.
+#[rustc_nounwind]
+#[rustc_intrinsic]
+pub const fn offload_begin<F, T: crate::marker::Tuple, R>(
+    f: F,
+    workgroup_dim: [u32; 3],
+    thread_dim: [u32; 3],
+    dyn_cache: u32,
+    device_id: i32,
+    args: T,
+) -> R;
+
+/// The kernel launch of an offload region. See [`offload_begin`].
+#[rustc_nounwind]
+#[rustc_intrinsic]
+pub const fn offload_launch<F, T: crate::marker::Tuple, R>(
+    f: F,
+    workgroup_dim: [u32; 3],
+    thread_dim: [u32; 3],
+    dyn_cache: u32,
+    device_id: i32,
+    args: T,
+) -> R;
+
+/// The copy-back half of an offload region. See [`offload_begin`].
+#[rustc_nounwind]
+#[rustc_intrinsic]
+pub const fn offload_end<F, T: crate::marker::Tuple, R>(
+    f: F,
+    workgroup_dim: [u32; 3],
+    thread_dim: [u32; 3],
+    dyn_cache: u32,
+    device_id: i32,
+    args: T,
+) -> R;
+
 /// Inform Miri that a given pointer definitely has a certain alignment.
 #[cfg(miri)]
 #[rustc_allow_const_fn_unstable(const_eval_select)]

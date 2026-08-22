@@ -15,14 +15,9 @@
 // CHECK: define{{( dso_local)?}} void @main()
 // CHECK-NOT: define
 // CHECK: %.offload_baseptrs = alloca [1 x ptr], align 8
-// CHECK-NEXT: %.offload_ptrs = alloca [1 x ptr], align 8
-// CHECK-NEXT: %kernel_args = alloca %struct.__tgt_kernel_arguments, align 8
-// CHECK: br label %bb3
-// CHECK-NOT define
-// CHECK: bb3
 // CHECK: call void @__tgt_target_data_begin_mapper(ptr nonnull @anon.{{.*}}.1, i64 -1, i32 1, ptr nonnull %.offload_baseptrs, ptr nonnull %.offload_ptrs, ptr nonnull @.offload_sizes.[[K]], ptr nonnull @.offload_maptypes.[[K]].begin, ptr null, ptr null)
-// CHECK: = call i32 @__tgt_target_kernel(ptr nonnull @anon.{{.*}}.1, i64 -1, i32 256, i32 32, ptr nonnull @.[[K]].region_id, ptr nonnull %kernel_args)
-// CHECK-NEXT: call void @__tgt_target_data_end_mapper(ptr nonnull @anon.{{.*}}.1, i64 -1, i32 1, ptr nonnull %.offload_baseptrs, ptr nonnull %.offload_ptrs, ptr nonnull @.offload_sizes.[[K]], ptr nonnull @.offload_maptypes.[[K]].end, ptr null, ptr null)
+// CHECK: call void @__tgt_target_data_end_mapper(ptr nonnull @anon.{{.*}}.1, i64 -1, i32 1, ptr nonnull %.offload_baseptrs{{[0-9]+}}, ptr nonnull %.offload_ptrs{{[0-9]+}}, ptr nonnull @.offload_sizes.[[K]], ptr nonnull @.offload_maptypes.[[K]].end, ptr null, ptr null)
+// CHECK: = call i32 @__tgt_target_kernel(ptr nonnull @anon.{{.*}}.1, i64 -1, i32 256, i32 32, ptr nonnull @.[[K]].region_id, ptr nonnull %kernel_args{{[0-9]+}})
 #[unsafe(no_mangle)]
 unsafe fn main() {
     let A = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0];

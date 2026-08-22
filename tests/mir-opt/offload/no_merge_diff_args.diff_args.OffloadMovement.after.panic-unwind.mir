@@ -1,0 +1,50 @@
+// MIR for `diff_args` after OffloadMovement
+
+fn diff_args(_1: *mut [f64; 4], _2: *mut [f64; 4]) -> () {
+    debug a => _1;
+    debug b => _2;
+    let mut _0: ();
+    let _3: ();
+    let mut _4: [u32; 3];
+    let mut _5: (*mut [f64; 4],);
+    let mut _6: (*mut [f64; 4],);
+    let mut _7: ();
+    let mut _8: ();
+    let mut _9: ();
+    let mut _10: ();
+
+    bb0: {
+        _4 = [const 1_u32, const 1_u32, const 1_u32];
+        StorageLive(_5);
+        _5 = (copy _1,);
+        _7 = offload_begin::<fn(*mut [f64; 4]) {k1}, (*mut [f64; 4],), ()>(k1, copy _4, copy _4, const 0_u32, const -1_i32, copy _5) -> [return: bb4, unwind unreachable];
+    }
+
+    bb1: {
+        StorageDead(_5);
+        StorageLive(_6);
+        _6 = (copy _2,);
+        _9 = offload_begin::<fn(*mut [f64; 4]) {k2}, (*mut [f64; 4],), ()>(k2, copy _4, copy _4, const 0_u32, const -1_i32, copy _6) -> [return: bb6, unwind unreachable];
+    }
+
+    bb2: {
+        StorageDead(_6);
+        return;
+    }
+
+    bb3: {
+        _3 = offload_end::<fn(*mut [f64; 4]) {k1}, (*mut [f64; 4],), ()>(k1, copy _4, copy _4, const 0_u32, const -1_i32, copy _5) -> [return: bb1, unwind unreachable];
+    }
+
+    bb4: {
+        _8 = offload_launch::<fn(*mut [f64; 4]) {k1}, (*mut [f64; 4],), ()>(k1, copy _4, copy _4, const 0_u32, const -1_i32, copy _5) -> [return: bb3, unwind unreachable];
+    }
+
+    bb5: {
+        _0 = offload_end::<fn(*mut [f64; 4]) {k2}, (*mut [f64; 4],), ()>(k2, copy _4, copy _4, const 0_u32, const -1_i32, copy _6) -> [return: bb2, unwind unreachable];
+    }
+
+    bb6: {
+        _10 = offload_launch::<fn(*mut [f64; 4]) {k2}, (*mut [f64; 4],), ()>(k2, copy _4, copy _4, const 0_u32, const -1_i32, copy _6) -> [return: bb5, unwind unreachable];
+    }
+}

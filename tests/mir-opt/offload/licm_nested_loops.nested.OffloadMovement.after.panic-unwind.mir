@@ -1,0 +1,88 @@
+// MIR for `nested` after OffloadMovement
+
+fn nested(_1: *mut [f64; 4], _2: u32, _3: u32) -> () {
+    debug a => _1;
+    debug n => _2;
+    debug m => _3;
+    let mut _0: ();
+    let mut _4: u32;
+    let mut _5: bool;
+    let mut _6: u32;
+    let mut _8: bool;
+    let mut _9: u32;
+    let _10: ();
+    let mut _11: [u32; 3];
+    let mut _12: (*mut [f64; 4],);
+    let mut _13: ();
+    let mut _14: ();
+    scope 1 {
+        debug i => _4;
+        let mut _7: u32;
+        scope 2 {
+            debug j => _7;
+        }
+    }
+
+    bb0: {
+        StorageLive(_4);
+        _4 = const 0_u32;
+        goto -> bb1;
+    }
+
+    bb1: {
+        StorageLive(_5);
+        StorageLive(_6);
+        _6 = copy _4;
+        _5 = Lt(move _6, copy _2);
+        switchInt(move _5) -> [0: bb6, otherwise: bb2];
+    }
+
+    bb2: {
+        StorageDead(_6);
+        StorageLive(_7);
+        _7 = const 0_u32;
+        goto -> bb8;
+    }
+
+    bb3: {
+        StorageLive(_8);
+        _9 = copy _7;
+        _8 = Lt(move _9, copy _3);
+        switchInt(move _8) -> [0: bb9, otherwise: bb7];
+    }
+
+    bb4: {
+        _7 = Add(copy _7, const 1_u32);
+        StorageDead(_8);
+        goto -> bb3;
+    }
+
+    bb5: {
+        StorageDead(_8);
+        _4 = Add(copy _4, const 1_u32);
+        StorageDead(_7);
+        StorageDead(_5);
+        goto -> bb1;
+    }
+
+    bb6: {
+        StorageDead(_6);
+        StorageDead(_5);
+        StorageDead(_4);
+        return;
+    }
+
+    bb7: {
+        _14 = offload_launch::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _11, copy _11, const 0_u32, const -1_i32, copy _12) -> [return: bb4, unwind unreachable];
+    }
+
+    bb8: {
+        _11 = [const 1_u32, const 1_u32, const 1_u32];
+        _12 = (copy _1,);
+        _13 = offload_begin::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _11, copy _11, const 0_u32, const -1_i32, copy _12) -> [return: bb3, unwind unreachable];
+    }
+
+    bb9: {
+        _10 = offload_end::<fn(*mut [f64; 4]) {k}, (*mut [f64; 4],), ()>(k, copy _11, copy _11, const 0_u32, const -1_i32, copy _12) -> [return: bb5, unwind unreachable];
+    }
+}

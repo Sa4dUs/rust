@@ -168,7 +168,10 @@ fn intrinsic_operation_unsafety(tcx: TyCtxt<'_>, intrinsic_id: LocalDefId) -> hi
         | sym::needs_drop
         | sym::non_exhaustive
         | sym::offload
+        | sym::offload_begin
+        | sym::offload_end
         | sym::offload_get_num_devices
+        | sym::offload_launch
         | sym::offset_of
         | sym::overflow_checks
         | sym::powf16
@@ -377,7 +380,7 @@ pub(crate) fn check_intrinsic_type(
                 ),
             ),
         ),
-        sym::offload => (
+        sym::offload | sym::offload_begin | sym::offload_launch | sym::offload_end => (
             3,
             0,
             vec![

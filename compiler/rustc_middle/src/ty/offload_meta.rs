@@ -1,5 +1,6 @@
 use bitflags::bitflags;
 use rustc_abi::{BackendRepr, TyAbiInterface};
+use rustc_data_structures::stable_hash::{StableHash, StableHashCtxt, StableHasher};
 use rustc_target::callconv::ArgAbi;
 
 use crate::ty::{self, PseudoCanonicalInput, Ty, TyCtxt, TypingEnv};
@@ -14,6 +15,72 @@ pub struct OffloadMetadata {
 pub enum OffloadSize {
     Static(u64),
     Slice { element_size: u64 },
+}
+
+bitflags! {
+    /// Per-argument data-movement information computed by the offload MIR analysis
+    /// (`rustc_mir_transform::offload`) for an offload kernel: whether the kernel body
+    /// reads from and/or writes to the mapped payload of each kernel argument.
+    ///
+    /// For pointer/reference arguments this refers to the *pointee*; for arguments passed
+    /// by value it refers to the value itself. Codegen uses this to drop unnecessary
+    /// `MappingFlags::TO`/`FROM` data transfers for a kernel argument.
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+    pub struct ArgAccess: u8 {
+        /// The kernel never touches the argument's mapped payload.
+        const NONE = 0;
+        /// The kernel reads from the argument's mapped payload.
+        const READ = 1 << 0;
+        /// The kernel writes to the argument's mapped payload.
+        const WRITE = 1 << 1;
+        /// The kernel writes to the argument's mapped payload in its entirety on every
+        /// path (a whole-`*p` store dominating all exits), so the host's initial values
+        /// are never needed and the copy-in can be dropped.
+        const FULL_OVERWRITE = 1 << 2;
+    }
+}
+
+impl StableHash for ArgAccess {
+    fn stable_hash<Hcx: StableHashCtxt>(&self, hcx: &mut Hcx, hasher: &mut StableHasher) {
+        self.bits().stable_hash(hcx, hasher);
+    }
+}
+
+impl ArgAccess {
+    /// Refines type-based mapping flags for a kernel argument using the result of the MIR
+    /// offload analysis (`offload_kernel_arg_access`).
+    ///
+    /// The analysis only ever removes transfers, never adds them:
+    /// - a `&mut`/`*mut` argument that is never written does not need the copy back
+    ///   (`FROM`). If it is entirely untouched, the copy in (`TO`) is dropped as well.
+    /// - a write-only `&mut`/`*mut` argument normally keeps its copy in, because the
+    ///   kernel may only overwrite part of the payload and the untouched bytes must
+    ///   retain their host values -- unless the analysis proved the whole payload is
+    ///   overwritten on every path (`ArgAccess::FULL_OVERWRITE`), in which case the
+    ///   copy in is dropped and only the copy back remains.
+    /// - by-value payloads only have a copy in, which is dropped when the value is never
+    ///   read.
+    pub fn refine(self, mut mode: MappingFlags, ty: Ty<'_>) -> MappingFlags {
+        match ty.kind() {
+            ty::RawPtr(..) | ty::Ref(..) => {
+                if !self.contains(ArgAccess::WRITE) {
+                    mode.remove(MappingFlags::FROM);
+                }
+                if !self.contains(ArgAccess::READ) && !self.contains(ArgAccess::WRITE) {
+                    mode.remove(MappingFlags::TO);
+                }
+                if self.contains(ArgAccess::FULL_OVERWRITE) {
+                    mode.remove(MappingFlags::TO);
+                }
+            }
+            _ => {
+                if !self.contains(ArgAccess::READ) {
+                    mode.remove(MappingFlags::TO);
+                }
+            }
+        }
+        mode
+    }
 }
 
 bitflags! {

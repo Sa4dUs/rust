@@ -166,6 +166,7 @@ declare_passes! {
     mod match_branches : MatchBranchSimplification;
     mod mentioned_items : MentionedItems;
     mod multiple_return_terminators : MultipleReturnTerminators;
+    mod offload : OffloadMovement;
     mod post_drop_elaboration : CheckLiveDrops;
     mod prettify : ReorderBasicBlocks, ReorderLocals;
     mod promote_consts : PromoteTemps;
@@ -227,6 +228,7 @@ pub fn provide(providers: &mut Providers) {
         optimized_mir,
         check_liveness: liveness::check_liveness,
         is_mir_available,
+        offload_kernel_arg_access: offload::offload_kernel_arg_access,
         mir_callgraph_cyclic: inline::cycle::mir_callgraph_cyclic,
         mir_inliner_callees: inline::cycle::mir_inliner_callees,
         promoted_mir,
@@ -764,6 +766,11 @@ pub(crate) fn run_optimization_passes<'tcx>(tcx: TyCtxt<'tcx>, body: &mut Body<'
             &simplify::SimplifyLocals::Final,
             &multiple_return_terminators::MultipleReturnTerminators,
             &large_enums::EnumSizeOpt { discrepancy: 128 },
+            // Host-side offload data-movement optimization (split `offload` into
+            // begin/launch/end, then merge overlapping transfers and hoist transfers
+            // out of loops). Must run after inlining so all offload call sites are
+            // visible, and after the last SimplifyCfg so the loop structure is final.
+            &offload::OffloadMovement,
             // Some cleanup necessary at least for LLVM and potentially other codegen backends.
             &add_call_guards::CriticalCallEdges,
             // Cleanup for human readability, off by default.

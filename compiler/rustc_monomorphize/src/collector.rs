@@ -868,7 +868,10 @@ impl<'a, 'tcx> MirVisitor<'tcx> for MirUsedCollector<'a, 'tcx> {
                 );
 
                 if let ty::FnDef(def_id, _) = *callee_ty.kind()
-                    && self.tcx.is_intrinsic(def_id, rustc_span::sym::offload)
+                    && (self.tcx.is_intrinsic(def_id, rustc_span::sym::offload)
+                        || self.tcx.is_intrinsic(def_id, rustc_span::sym::offload_begin)
+                        || self.tcx.is_intrinsic(def_id, rustc_span::sym::offload_launch)
+                        || self.tcx.is_intrinsic(def_id, rustc_span::sym::offload_end))
                     && let Some(kernel) = args.first()
                 {
                     let kernel_ty = kernel.node.ty(self.body, self.tcx);
